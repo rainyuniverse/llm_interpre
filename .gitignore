@@ -3,4 +3,6 @@ data/
 finetune_results/
 logs/
 translation_results/
+fintune.log
+find.log
 *.log
