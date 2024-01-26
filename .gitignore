@@ -3,3 +3,4 @@ data/
 finetune_results/
 logs/
 translation_results/
+*.log
