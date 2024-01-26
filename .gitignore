@@ -1,0 +1,6 @@
+*.log
+__pycache__/
+data/
+finetune_results/
+logs/
+translation_results/
