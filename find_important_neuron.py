@@ -4,6 +4,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import copy
 import json
+import argparse
 
 def find_all_target_modules(model):
     target_module_name_list = []
@@ -56,15 +57,20 @@ def remove_hook(hook_forwards, hook_backwards):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model_path', type=str, help='model path')
+    parser.add_argument('--save_folder_path', type=str, help='save folder path')
+    args = parser.parse_args()
+
     # 涉及到的语言
     lang_code_list = ['arb_Arab', 'fra_Latn', 'spa_Latn', 'eng_Latn', 'deu_Latn', 'ita_Latn', 'jpn_Jpan', 'rus_Cyrl', 'zho_Hans', 'zho_Hant']
 
-    model_path = "/data/lypan/llms/bloom-560m"
+    model_path = args.model_path
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     bloom = BloomForCausalLM.from_pretrained(model_path).to("cuda")
 
     # 语言共有神经元和语言特有神经元保存路径
-    folder_path = "/data/lypan/llm_interpre/neuron_info/test/"
+    folder_path = args.save_folder_path
 
     target_module_name_list = find_all_target_modules(bloom)
     # 目标结构名称列表

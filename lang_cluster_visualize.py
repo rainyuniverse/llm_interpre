@@ -7,9 +7,9 @@ from find_important_neuron import find_all_target_modules, read_monolingual_data
 import json
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
+import argparse
 
-def get_lang_agnos_speci_neuron():
-    folder_path = "/data/lypan/llm_interpre/neuron_info/bloom-560m/"
+def get_lang_agnos_speci_neuron(folder_path):
     with open(folder_path + 'lang_agnos.json', 'r') as json_file:
         lang_agnos = json.load(json_file)
     with open(folder_path + 'lang_speci.json', 'r') as json_file:
@@ -33,9 +33,15 @@ def add_hooks(model, target_module_names):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model_path', type=str, help='model path')
+    parser.add_argument("--neuron_info_path", type=str, help="neuron info path")
+    args = parser.parse_args()
+
     lang_code_list = ['arb_Arab', 'fra_Latn', 'spa_Latn', 'eng_Latn', 'deu_Latn', 'ita_Latn', 'jpn_Jpan', 'rus_Cyrl', 'zho_Hans', 'zho_Hant']
 
-    model_path = "/data/lypan/llms/bloom-560m"
+    model_path = args.model_path
+    neuron_info_path = args.neuron_info_path
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     bloom = BloomForCausalLM.from_pretrained(model_path).to("cuda")
 
@@ -51,7 +57,7 @@ if __name__ == "__main__":
 
     repre_method = "part"
 
-    language_agnostic_neurons, language_specific_neurons = get_lang_agnos_speci_neuron()
+    language_agnostic_neurons, language_specific_neurons = get_lang_agnos_speci_neuron(neuron_info_path)
 
     for i in range(len(lang_code_list)):
         cur_lang_code = lang_code_list[i]
@@ -114,7 +120,7 @@ if __name__ == "__main__":
         scatter_list.append(plt.scatter(low_dimensional_data[start:end, 0], low_dimensional_data[start:end, 1], c=colors[i], s=2))
     plt.title('lang_agnos neuron t-SNE Visualization')
     plt.legend(scatter_list, lang_code_list)
-    plt.savefig('/data/lypan/llm_interpre/fig/lang_agnos.png')
+    plt.savefig('fig/lang_agnos.png')
 
     # 语言特有神经元表示聚类
     high_dimensional_data = mean_specific_repre

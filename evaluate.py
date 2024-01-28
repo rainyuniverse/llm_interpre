@@ -153,34 +153,26 @@ if __name__ == "__main__":
         src_lang, tgt_lang = lang_direction_list[i].split("-")
         src_lang_code = lang_code_dict1[src_lang]
         tgt_lang_code = lang_code_dict1[tgt_lang]
+
         # 更新模型语言特有参数
-        update_model_param(model=model,
-                           src_lang_code=src_lang_code,
-                           tgt_lang_code=tgt_lang_code,
-                           weight_name_list=weight_name_list,
-                           bias_name_list=bias_name_list,
-                           specific_param_dict=specific_param_dict)
+        # update_model_param(model=model,
+        #                    src_lang_code=src_lang_code,
+        #                    tgt_lang_code=tgt_lang_code,
+        #                    weight_name_list=weight_name_list,
+        #                    bias_name_list=bias_name_list,
+        #                    specific_param_dict=specific_param_dict)
+        
         output_list = []
         src_sent_list, tgt_sent_list = read_translation_data(lang_direction_list[i])
         prompt_list = get_prompt_list(src_sent_list, lang_direction1_list[i])
 
         for j in tqdm(range(0, len(prompt_list), batch_size), desc=lang_direction_list[i]):
             inputs = tokenizer(prompt_list[j: j + batch_size], padding=True, return_tensors="pt").to("cuda")
-            # print(inputs)
             outputs = model.generate(inputs.input_ids, max_new_tokens=128)
-            # print(outputs.shape, outputs)
 
             for k in range(outputs.shape[0]):
                 cur_output = tokenizer.decode(outputs[k], skip_special_tokens=True)
                 cur_output = cur_output.replace(prompt_list[j + k], "", 1).replace("\n", " ").replace("\r", " ")
                 output_list.append(cur_output)
-            # outputs = tokenizer.decode(outputs, skip_special_tokens=True)
-            # print(outputs)
-
-            # outputs = outputs.replace(prompt_list[j], "", 1).replace("\n", " ").replace("\r", " ")
-            # output_list.append(outputs)
-                
-        # print(output_list)
-        # break
 
         write_data(output_list, output_path_prefix + lang_direction_list[i] + ".txt")

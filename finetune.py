@@ -10,8 +10,18 @@ from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.tensorboard import SummaryWriter
 import copy
+import argparse
 
-folder_path = "/data/lypan/llm_interpre/neuron_info/bloom-560m/"
+parser = argparse.ArgumentParser()
+parser.add_argument('--model_path', type=str, help='model path')
+parser.add_argument("--neuron_info_path", type=str, help="neuron info path")
+parser.add_argument("--log_path", type=str, help="log path")
+parser.add_argument("--train_data_path", type=str, help="train data path")
+parser.add_argument("--lang_pairs", type=str, nargs='+', help="lang pairs")
+parser.add_argument("--save_model_path", type=str, help="save model path")
+args = parser.parse_args()
+
+folder_path = args.neuron_info_path
 lang_code_list = ['arb_Arab', 'fra_Latn', 'spa_Latn', 'eng_Latn', 'deu_Latn', 'ita_Latn', 'jpn_Jpan', 'rus_Cyrl', 'zho_Hans', 'zho_Hant']
 lang_code_dict1 = {"ar": "arb_Arab", "en": "eng_Latn", "de": "deu_Latn", "fr": "fra_Latn", "it": "ita_Latn", "zh": "zho_Hans"}
 
@@ -185,10 +195,11 @@ def freeze_other_param(model, module_name_list):
             param.requires_grad = False
 
 if __name__ == "__main__":
-    model_path = "/data/lypan/llms/bloom-560m"
+    model_path = args.model_path
+    log_path = args.log_path
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     model = BloomForCausalLM.from_pretrained(model_path, device_map="auto")
-    writer = SummaryWriter('./logs/agnos')
+    writer = SummaryWriter(log_path)
 
     module_name_list = [
         'transformer.h.3.input_layernorm', 'transformer.h.3.self_attention.query_key_value', 'transformer.h.3.self_attention.dense', 'transformer.h.3.post_attention_layernorm', 'transformer.h.3.mlp.dense_h_to_4h', 'transformer.h.3.mlp.dense_4h_to_h', 
@@ -200,12 +211,16 @@ if __name__ == "__main__":
     # 冻结指定结构之外的其他参数
     freeze_other_param(model, module_name_list)
 
+    # 每个语言方向限制的数据条数
     limit_len_per_lang = 100000
-    data_path_prefix = "/data/lypan/peft/data/TED-TALKS-2020/"
-    lang_direction = [
-        "en-ar", "en-de", "en-fr", "en-it", "en-zh", 
-        "ar-en", "de-en", "fr-en", "it-en", "zh-en"
-    ]
+    data_path_prefix = args.train_data_path
+    # lang_direction = [
+    #     "en-ar", "en-de", "en-fr", "en-it", "en-zh", 
+    #     "ar-en", "de-en", "fr-en", "it-en", "zh-en"
+    # ]
+    lang_direction = args.lang_pairs
+    save_model_path = args.save_model_path
+
     # lang_direction = ["zh-en"]
     lang_code_dict = {"ar": "Arabic", "en": "English", "de": "Germany", "fr": "French", "it": "Italian", "zh": "Chinese"}
 
@@ -346,4 +361,4 @@ if __name__ == "__main__":
         writer.close()
         print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {loss.item()}")
 
-    model.save_pretrained("/data/lypan/llm_interpre/finetune_results/finetune_agnos_bloom-560m_1")
+    model.save_pretrained(save_model_path)
