@@ -1,9 +1,10 @@
-from transformers import AutoTokenizer, BloomForCausalLM
+from transformers import AutoTokenizer, BloomForCausalLM, LlamaForCausalLM
 import torch
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import copy
 import json
+import torch.nn.functional as F
 import argparse
 
 def find_all_target_modules(model):
@@ -55,6 +56,16 @@ def remove_hook(hook_forwards, hook_backwards):
         hook_forward.remove()
         hook_backward.remove()
 
+# 根据 某一结构所有参数和神经元索引 寻找指定神经元参数：指定神经元参数不变，其他位置置0
+def get_neuron_by_index(module_param, neuron_index):
+    # 全零初始化weight和bias的mask矩阵
+    mask_matrix = torch.zeros_like(module_param) if module_param is not None else None
+    # 语言共有神经元位置置1，其他还是0
+    mask_matrix[neuron_index] = 1
+    # 只保留语言共有的神经元，其他神经元置零
+    neuron_param = module_param * mask_matrix
+    return neuron_param
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -67,14 +78,15 @@ if __name__ == "__main__":
 
     model_path = args.model_path
     tokenizer = AutoTokenizer.from_pretrained(model_path)
-    bloom = BloomForCausalLM.from_pretrained(model_path).to("cuda")
+    model = BloomForCausalLM.from_pretrained(model_path, device_map='auto')
+    # model = LlamaForCausalLM.from_pretrained(model_path, device_map='auto')
 
     # 语言共有神经元和语言特有神经元保存路径
     folder_path = args.save_folder_path
 
-    target_module_name_list = find_all_target_modules(bloom)
+    target_module_name_list = find_all_target_modules(model)
     # 目标结构名称列表
-    target_module_names = target_module_name_list[2:-2]
+    target_module_names = target_module_name_list[1:-2]
 
     # target_module_names = ['transformer.h.0.input_layernorm', 'transformer.h.0.self_attention.query_key_value', 'transformer.h.0.self_attention.dense', 'transformer.h.0.post_attention_layernorm', 'transformer.h.0.mlp.dense_h_to_4h', 'transformer.h.0.mlp.dense_4h_to_h', 
     #                    'transformer.h.1.input_layernorm', 'transformer.h.1.self_attention.query_key_value', 'transformer.h.1.self_attention.dense', 'transformer.h.1.post_attention_layernorm', 'transformer.h.1.mlp.dense_h_to_4h', 'transformer.h.1.mlp.dense_4h_to_h', 
@@ -107,7 +119,7 @@ if __name__ == "__main__":
     importance_matrix_dict = {key: {key: [] for key in target_module_names} for key in lang_code_list}
 
     # 将前向传播和后向传播的钩子加入模型中
-    hook_forwards, hook_backwards = add_hooks(bloom, target_module_names)
+    hook_forwards, hook_backwards = add_hooks(model, target_module_names)
 
     for i in range(len(lang_code_list)):
         cur_lang_code = lang_code_list[i]
@@ -122,7 +134,7 @@ if __name__ == "__main__":
             input = inputs["input_ids"][:, 0:len(inputs["input_ids"][0]) - 1]
             label = inputs["input_ids"][:, 1:len(inputs["input_ids"][0])]
 
-            outputs = bloom(input, labels=label)
+            outputs = model(input, labels=label)
             loss = outputs.loss
             loss.backward()
 
@@ -142,7 +154,7 @@ if __name__ == "__main__":
             forward_cache = []
             backward_cache = []
             # 清零梯度
-            bloom.zero_grad()
+            model.zero_grad()
 
     # 语言共有神经元
     language_agnostic_neurons = {key: [] for key in target_module_names}
@@ -150,6 +162,10 @@ if __name__ == "__main__":
     language_specific_neurons = {key: [] for key in target_module_names}
     # 根据每种语言划分语言特有神经元
     language_specific_neurons_per_lang = {key: {key: [] for key in lang_code_list} for key in target_module_names}
+
+    # 每种语言语言共有和语言特有神经元的重要性分数加和
+    lang_agnos_importance_per_lang = {key: {key: [] for key in lang_code_list} for key in target_module_names}
+    lang_speci_importance_per_lang = {key: {key: [] for key in lang_code_list} for key in target_module_names}
 
     for i in range(len(target_module_names)):
         cur_module_name = target_module_names[i]
@@ -186,11 +202,15 @@ if __name__ == "__main__":
         for indice in sorted_specific_indices:
             max_value = 0
             max_value_correspond_lang = ""
-            for i in range(len(lang_code_list)):
-                if sum_importance_matrix_list[i][indice] > max_value:
-                    max_value = sum_importance_matrix_list[i][indice]
-                    max_value_correspond_lang = lang_code_list[i]
+            for j in range(len(lang_code_list)):
+                if sum_importance_matrix_list[j][indice] > max_value:
+                    max_value = sum_importance_matrix_list[j][indice]
+                    max_value_correspond_lang = lang_code_list[j]
             language_specific_neurons_per_lang[cur_module_name][max_value_correspond_lang].append(indice.item())
+
+        for j in range(len(lang_code_list)):
+            lang_agnos_importance_per_lang[cur_module_name][lang_code_list[j]] = get_neuron_by_index(sum_importance_matrix_list[j], language_agnostic_neurons[cur_module_name])
+            lang_speci_importance_per_lang[cur_module_name][lang_code_list[j]] = get_neuron_by_index(sum_importance_matrix_list[j], language_specific_neurons_per_lang[cur_module_name][lang_code_list[j]])
 
     # 将找到的语言共有神经元和语言特有神经元保存
     with open(folder_path + 'lang_agnos.json', 'w') as json_file:
@@ -201,3 +221,6 @@ if __name__ == "__main__":
 
     with open(folder_path + 'lang_speci_by_lang.json', 'w') as json_file:
         json.dump(language_specific_neurons_per_lang, json_file)
+
+    torch.save(lang_agnos_importance_per_lang, folder_path + 'lang_agnos_importance.pth')
+    torch.save(lang_speci_importance_per_lang, folder_path + 'lang_speci_importance.pth')

@@ -39,6 +39,9 @@ class MultilingualBatchSampler(BatchSampler):
         # 每个语言对的数据量（假设所有语言对的数据量相等，所以仅计算第一个语言对的数据量）
         per_lang_pair_length = 0
         for i in batch:
+            if i + 1 >= len(self.dataset):
+                per_lang_pair_length = len(self.dataset)
+                break
             if self.dataset[i]["lang_pair"] != self.dataset[i + 1]["lang_pair"]:
                 per_lang_pair_length = i + 1
                 break
@@ -63,6 +66,9 @@ class MultilingualBatchSampler(BatchSampler):
         # 每个语言对的数据量（假设所有语言对的数据量相等，所以仅计算第一个语言对的数据量）
         per_lang_pair_length = 0
         for i in batch:
+            if i + 1 >= len(self.dataset):
+                per_lang_pair_length = len(self.dataset)
+                break
             if self.dataset[i]["lang_pair"] != self.dataset[i + 1]["lang_pair"]:
                 per_lang_pair_length = i + 1
                 break
