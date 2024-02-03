@@ -1,5 +1,5 @@
 ori_data_prefix=/data/lypan/llm_interpre/data/flores200
-trans_data_prefix=/data/lypan/llm_interpre/translation_results/template2/finetune_bloom-560m_3
+trans_data_prefix=/data/lypan/llm_interpre/translation_results/template2/eval_bloom/zh-en
 # trans_data_prefix=/data/lypan/llm_interpre/translation_results/bloom-560m
 # trans_data_prefix=/data/lypan/llm_interpre/translation_results/finetune_bloom-560m
 lang_pairs=("en-ar" "en-de" "en-fr" "en-it" "en-zh"  "ar-en" "de-en" "fr-en" "it-en" "zh-en")
