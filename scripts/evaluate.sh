@@ -1,5 +1,5 @@
-ori_data_prefix=/data/lypan/llm_interpre/data/flores200
-trans_data_prefix=/data/lypan/llm_interpre/translation_results/template2/eval_bloom/zh-en
+ori_data_prefix=/data/lypan/llm_interpre/data/opus-test
+trans_data_prefix=/data/lypan/llm_interpre/translation_results/template3/ablation/specific
 # trans_data_prefix=/data/lypan/llm_interpre/translation_results/bloom-560m
 # trans_data_prefix=/data/lypan/llm_interpre/translation_results/finetune_bloom-560m
 lang_pairs=("en-ar" "en-de" "en-fr" "en-it" "en-zh"  "ar-en" "de-en" "fr-en" "it-en" "zh-en")
@@ -19,8 +19,10 @@ for lang_pair in "${lang_pairs[@]}"; do
     tgt=${values[1]}
 
     if [ "$tgt" == "zh" ]; then
-        sacrebleu ${ori_data_prefix}/${lang_pair}/${lang_code_dict[$tgt]}.devtest -i ${trans_data_prefix}/${lang_pair}.txt -m bleu -b -w 4 -tok zh
+        # sacrebleu ${ori_data_prefix}/${lang_pair}/${lang_code_dict[$tgt]}.devtest -i ${trans_data_prefix}/${lang_pair}.txt -m bleu -b -w 4 -tok zh
+        sacrebleu ${ori_data_prefix}/${lang_pair}/test.${tgt} -i ${trans_data_prefix}/${lang_pair}.txt -m bleu -b -w 4 -tok zh
     else
-        sacrebleu ${ori_data_prefix}/${lang_pair}/${lang_code_dict[$tgt]}.devtest -i ${trans_data_prefix}/${lang_pair}.txt -m bleu -b -w 4
+        # sacrebleu ${ori_data_prefix}/${lang_pair}/${lang_code_dict[$tgt]}.devtest -i ${trans_data_prefix}/${lang_pair}.txt -m bleu -b -w 4
+        sacrebleu ${ori_data_prefix}/${lang_pair}/test.${tgt} -i ${trans_data_prefix}/${lang_pair}.txt -m bleu -b -w 4
     fi
 done

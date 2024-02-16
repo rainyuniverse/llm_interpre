@@ -232,7 +232,7 @@ if __name__ == "__main__":
     freeze_other_param(model, module_name_list)
 
     # 每个语言方向限制的数据条数
-    limit_len_per_lang = 1000
+    limit_len_per_lang = 100000
     data_path_prefix = args.train_data_path
     # lang_direction = [
     #     "en-ar", "en-de", "en-fr", "en-it", "en-zh", 

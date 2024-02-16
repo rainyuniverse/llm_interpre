@@ -1,4 +1,4 @@
-from transformers import AutoTokenizer, BloomForCausalLM, LlamaForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM, BloomForCausalLM, LlamaForCausalLM
 import torch
 from tqdm import tqdm
 import matplotlib.pyplot as plt
@@ -77,8 +77,8 @@ if __name__ == "__main__":
     lang_code_list = ['arb_Arab', 'fra_Latn', 'spa_Latn', 'eng_Latn', 'deu_Latn', 'ita_Latn', 'jpn_Jpan', 'rus_Cyrl', 'zho_Hans', 'zho_Hant']
 
     model_path = args.model_path
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
-    model = BloomForCausalLM.from_pretrained(model_path, device_map='auto')
+    tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False, trust_remote_code=True)
+    model = AutoModelForCausalLM.from_pretrained(model_path, device_map='auto', trust_remote_code=True)
     # model = LlamaForCausalLM.from_pretrained(model_path, device_map='auto')
 
     # 语言共有神经元和语言特有神经元保存路径

@@ -1,8 +1,8 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "7"
 
 import torch
-from transformers import AutoTokenizer, BloomForCausalLM
+from transformers import AutoTokenizer, BloomForCausalLM, AutoModelForCausalLM
 from tqdm import tqdm
 import json
 
@@ -18,22 +18,25 @@ def read_data(file_path):
     return sent_list
 
 def read_translation_data(lang_direction):
-    folder_path = "/data/lypan/llm_interpre/data/flores200/"
+    # folder_path = "/data/lypan/llm_interpre/data/flores200/"
+    folder_path = "/data/lypan/llm_interpre/data/opus-test/"
     folder_path = folder_path + lang_direction + "/"
     src_lang, tgt_lang = lang_direction.split("-")
 
-    src_sent_list = read_data(folder_path + lang_code_dict1[src_lang] + ".devtest")
-    tgt_sent_list = read_data(folder_path + lang_code_dict1[src_lang] + ".devtest")
+    # src_sent_list = read_data(folder_path + lang_code_dict1[src_lang] + ".devtest")
+    # tgt_sent_list = read_data(folder_path + lang_code_dict1[src_lang] + ".devtest")
+    src_sent_list = read_data(folder_path + "test." + src_lang)
+    tgt_sent_list = read_data(folder_path + "test." + tgt_lang)
 
     return src_sent_list, tgt_sent_list
 
 def get_prompt(src_sent, language_direction):
     # template2
-    template = 'How do you say \"{sent1}\" in {lang2}?'
+    # template = 'How do you say \"{sent1}\" in {lang2}?'
     # template1
     # template = "{sent1} Say this using {lang2}"
     # template3
-    # template = "Translate \"{sent1}\" to {lang2}."
+    template = "Translate \"{sent1}\" to {lang2}."
     source_language = language_direction.split("-")[0]
     target_language = language_direction.split("-")[1]
 
@@ -125,18 +128,18 @@ def get_batch_responses(tokenizer, model, text_batch, input_batch):
 
 if __name__ == "__main__":
     # 输出翻译结果保存路径
-    output_path_prefix = "/data/lypan/llm_interpre/translation_results/template2/finetune_bloom-560m_3/"
+    output_path_prefix = "/data/lypan/llm_interpre/translation_results/template3/ablation/agnostic/"
     # 微调后的模型文件路径
-    finetune_model_path = "/data/lypan/llm_interpre/finetune_results/finetune_bloom-560m_3/25000/"
+    finetune_model_path = "/data/lypan/llm_interpre/finetune_results/bloom-7b1-ablation/agnostic/"
 
-    tokenizer = AutoTokenizer.from_pretrained("/data/lypan/llms/bloom-560m")
-    model = BloomForCausalLM.from_pretrained(finetune_model_path).to("cuda")
-    specific_param_dict = torch.load(finetune_model_path + "specific_param_dict.pth")
+    tokenizer = AutoTokenizer.from_pretrained("/data/lypan/llms/bloom-7b1", use_fast=False, trust_remote_code=True)
+    model = AutoModelForCausalLM.from_pretrained(finetune_model_path, trust_remote_code=True).to("cuda")
+    # specific_param_dict = torch.load(finetune_model_path + "specific_param_dict.pth")
 
-    module_name_list = list(specific_param_dict.keys())
-    # 对应module name列表的weight name和bias name列表
-    weight_name_list = [module_name + ".weight" for module_name in module_name_list]
-    bias_name_list = [module_name + ".bias" for module_name in module_name_list]
+    # module_name_list = list(specific_param_dict.keys())
+    # # 对应module name列表的weight name和bias name列表
+    # weight_name_list = [module_name + ".weight" for module_name in module_name_list]
+    # bias_name_list = [module_name + ".bias" for module_name in module_name_list]
 
     lang_direction_list = [
         "en-ar", "en-de", "en-fr", "en-it", "en-zh", 
@@ -147,7 +150,7 @@ if __name__ == "__main__":
         "Arabic-English", "German-English", "French-English", "Italian-English", "Chinese-English"
     ]
 
-    batch_size = 80
+    batch_size = 4
 
     for i in range(len(lang_direction_list)):
         src_lang, tgt_lang = lang_direction_list[i].split("-")

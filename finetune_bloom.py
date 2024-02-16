@@ -45,9 +45,6 @@ with open(folder_path + 'lang_agnos.json', 'r') as json_file:
 with open(folder_path + 'lang_speci_by_lang.json', 'r') as json_file:
     lang_speci = json.load(json_file)
 
-lang_agnos_importance = torch.load(folder_path + 'lang_agnos_importance.pth')
-lang_speci_importance = torch.load(folder_path + 'lang_speci_importance.pth')
-
 def transform_pattern_to_instruction(lang_pair, replacements):
     pattern = random.choice(translation_patterns)
     data = {}
@@ -196,23 +193,23 @@ def get_mask_scale_grad(model, module_name, src_lang_code, tgt_lang_code):
         bias_grad = param_dict["bias"].grad
 
     # 1. agnostic + specific
-    mask_matrix = (lang_agnos_importance[module_name][src_lang_code] + lang_agnos_importance[module_name][tgt_lang_code]) / 2 + \
-                        lang_speci_importance[module_name][src_lang_code] + lang_speci_importance[module_name][tgt_lang_code]
+    # mask_matrix = (lang_agnos_importance[module_name][src_lang_code] + lang_agnos_importance[module_name][tgt_lang_code]) / 2 + \
+    #                     lang_speci_importance[module_name][src_lang_code] + lang_speci_importance[module_name][tgt_lang_code]
     
     # 2. agnostic only
     # mask_matrix = (lang_agnos_importance[module_name][src_lang_code] + lang_agnos_importance[module_name][tgt_lang_code]) / 2
 
     # 3. specific only
-    # mask_matrix = lang_speci_importance[module_name][src_lang_code] + lang_speci_importance[module_name]
+    mask_matrix = lang_speci_importance[module_name][src_lang_code] + lang_speci_importance[module_name][tgt_lang_code]
 
     if weight_grad is not None:
         if len(weight_grad.shape) == 1:
-            weight_grad = weight_grad * mask_matrix.to("cuda")
+            weight_grad = weight_grad * mask_matrix.to(weight_grad.device)
         elif len(weight_grad.shape) == 2:
             # 扩展到两个维度，可以使用广播机制
-            weight_grad = weight_grad * (mask_matrix.view(-1, 1)).to("cuda")
+            weight_grad = weight_grad * (mask_matrix.view(-1, 1)).to(weight_grad.device)
     if bias_grad is not None:
-        bias_grad = bias_grad * mask_matrix.to("cuda")
+        bias_grad = bias_grad * mask_matrix.to(bias_grad.device)
 
     mask_grad = {"mask_weight_grad": weight_grad, "mask_bias_grad": bias_grad}
 
@@ -250,6 +247,17 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     model = BloomForCausalLM.from_pretrained(model_path, device_map="auto")
     writer = SummaryWriter(log_path)
+
+    lang_agnos_importance = torch.load(folder_path + 'lang_agnos_importance.pth')
+    lang_speci_importance = torch.load(folder_path + 'lang_speci_importance.pth')
+
+    # for module_name in lang_agnos_importance.keys():
+    #     for lang in lang_agnos_importance[module_name].keys():
+    #         lang_agnos_importance[module_name][lang] = lang_agnos_importance[module_name][lang].to("cuda")
+
+    # for module_name in lang_speci_importance.keys():
+    #     for lang in lang_speci_importance[module_name].keys():
+    #         lang_speci_importance[module_name][lang] = lang_speci_importance[module_name][lang].to("cuda")
 
     module_name_list = [
         'transformer.h.3.input_layernorm', 'transformer.h.3.self_attention.query_key_value', 'transformer.h.3.self_attention.dense', 'transformer.h.3.post_attention_layernorm', 'transformer.h.3.mlp.dense_h_to_4h', 'transformer.h.3.mlp.dense_4h_to_h', 
